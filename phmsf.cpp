@@ -5,7 +5,12 @@
 #define PI 3.141569
 
 struct Edge{
-  unsigned int from, to, weight;
+    unsigned int from, to, weight;
+};
+
+struct Graph{
+    Edge* edges;
+    int edgeCount;
 };
 
 // Graph Creation
@@ -17,7 +22,7 @@ int getEuclidianDistance(int r1, int g1, int b1, int r2, int g2, int b2) {
     return sqrt(square(r1-r2)+square(g1-g2)+square(b1-b2));
 }
 
-Edge* createGraph(unsigned char* rgb, unsigned int maxWeight,
+Graph* createGraph(unsigned char* rgb, unsigned int maxWeight,
         unsigned int height, unsigned int width) {
     unsigned int edgeCount = 2 * width * height - w - h;
     Edge* graph = new Edge[edgeCount];
@@ -65,7 +70,10 @@ Edge* createGraph(unsigned char* rgb, unsigned int maxWeight,
         }
     }
     delete[] graph;
-    return sortedGraph;
+    Graph* ret = new Graph();
+    ret->edgeCount = edgeCount;
+    ret->edges = sortedGraph;
+    return ret;
 }
 
 // Initial Regions
@@ -126,14 +134,14 @@ RegionalData* getInitialRegions(Edge* graph, int minWeight, int minRegionSize,
         int edgeCount, int width, int height) {
     UnionFind* uf = new UnionFind(width*height);
     for (int i = 0; i < edgeCount && graph[i].weight <= minWeight; i++) {
-        if (!uf.isUnited(graph[i].from, graph[i].to)) {
-            uf.unite(graph[i].from, graph[i].to);
+        if (!uf->isUnited(graph[i].from, graph[i].to)) {
+            uf->unite(graph[i].from, graph[i].to);
         }
     }
     Region* regions = new Region[width*height];
     for (int i = 0; i < width*height; i++) {
-        regions[uf.find(i)].size++;
-        regions[uf.find(i)].representative = uf.find(i);
+        regions[uf->find(i)].size++;
+        regions[uf->find(i)].representative = uf.find(i);
     }
     for (int i = 0; i < width*height; i++) {
         if (region[i].size >= minRegionSize)
@@ -143,4 +151,60 @@ RegionalData* getInitialRegions(Edge* graph, int minWeight, int minRegionSize,
     }
     RegionalData* ret = new RegionalData(uf, regions);
     return ret;
+}
+
+// Region Expansion
+
+struct SegmentationData{
+    int* segment;
+    int segmentCount;
+};
+
+SegmentationData* expandRegions(RegionalData* rd, int minWeight,
+    int width, int height, Edge* graph, int edgeCount) {
+    for (int i = edgeCount - 1; i >= 0 && graph[i].weight > minWeight; i--) {
+        if (!rd->uf->isUnited(graph[i].from, graph[i].to)) {
+            int a = rd->uf->find(graph[i].from);
+            int b = rd->uf->find(graph[i].to);
+            int credit = min(rd->regions[a].credit, rd->region[b].credit);
+            if (credit > graph[i].weight) {
+                int s = rd->uf->unite(a, b);
+                rd->regions[s].credit = credit - graph[i].weight;
+            }
+        }
+    }
+    int* repTable = new int[width*height];
+    int idx = 0;
+    for (int i = 0; i < width*height; i++) {
+        if (rd->uf->isRepresetative(i)) {
+            repTable[i] = idx++;
+        }
+    }
+    for (int i = 0; i < width*height; i++) {
+        rd->regions[i] = repTable[rd->uf->find(i)];
+    }
+    SegmentationData ret = {rd->regions, idx};
+    return ret;
+}
+
+// Main entry point
+
+extern "C" SegmentationData* segmentImage(unsigned char* rgb, int height,
+        int width, int minWeight, int maxWeight, int minRegionSize) {
+    Graph* graph = createGraph(rgb, maxWeight, height, width);
+    RegionalData* regional = getInitialRegions(graph->edges, minWeight,
+        minRegionSize, graph->edgeCount, width, height);
+    return expandRegions(regional, minWeight, width, height,
+        graph->edges, graph->edgeCount);
+}
+
+// Testing
+
+extern "C" void printData(SegmentationData* data, int height, int width) {
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            printf("%d ", data->segment[i*width+j]);
+        }
+        printf("\n");
+    }
 }

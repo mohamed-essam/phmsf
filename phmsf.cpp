@@ -1,6 +1,9 @@
 // Copyright 2016 Mohamed Essam
 #include <math.h>
+#include <stdio.h>
+#include <string.h>
 #include <algorithm>
+#include <utility>
 
 #define PI 3.141569
 
@@ -24,10 +27,11 @@ int getEuclidianDistance(int r1, int g1, int b1, int r2, int g2, int b2) {
 
 Graph* createGraph(unsigned char* rgb, unsigned int maxWeight,
         unsigned int height, unsigned int width) {
-    unsigned int edgeCount = 2 * width * height - w - h;
+    unsigned int edgeCount = 2 * width * height - width - height;
     Edge* graph = new Edge[edgeCount];
     unsigned int nextEdge = 0;
     unsigned int histogram[450];
+    memset(histogram, 0, sizeof(histogram));
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             unsigned int idx1, idx2, idx3;
@@ -39,7 +43,7 @@ Graph* createGraph(unsigned char* rgb, unsigned int maxWeight,
                 if (w > maxWeight) {
                     edgeCount--;
                 } else {
-                    graph[nextEdge++] = {idx1/3, idx2/3, w}
+                    graph[nextEdge++] = {idx1/3, idx2/3, w};
                     histogram[w]++;
                 }
             }
@@ -50,7 +54,7 @@ Graph* createGraph(unsigned char* rgb, unsigned int maxWeight,
                  if (w > maxWeight) {
                      edgeCount--;
                  } else {
-                    graph[nextEdge++] = {idx1/3, idx3/3, w}
+                    graph[nextEdge++] = {idx1/3, idx3/3, w};
                     histogram[w]++;
                 }
             }
@@ -101,7 +105,7 @@ struct UnionFind{
     unsigned int unite(unsigned int a, unsigned int b) {
         a = find(a), b = find(b);
         if (a == b) return a;
-        if (rank[b] > rank[a]) swap(a, b);
+        if (rank[b] > rank[a]) std::swap(a, b);
         else if (rank[a] == rank[b]) rank[a]++;
         parent[b] = a;
         rank[a] += rank[b];
@@ -124,6 +128,11 @@ struct Region{
 struct RegionalData {
     UnionFind* uf;
     Region* regions;
+
+    RegionalData(UnionFind* _uf, Region* _regions) {
+        uf = _uf;
+        regions = _regions;
+    }
 };
 
 int computeCredit(int regionSize) {
@@ -141,13 +150,14 @@ RegionalData* getInitialRegions(Edge* graph, int minWeight, int minRegionSize,
     Region* regions = new Region[width*height];
     for (int i = 0; i < width*height; i++) {
         regions[uf->find(i)].size++;
-        regions[uf->find(i)].representative = uf.find(i);
+        regions[uf->find(i)].representative = uf->find(i);
     }
     for (int i = 0; i < width*height; i++) {
-        if (region[i].size >= minRegionSize)
+        if (regions[i].size >= minRegionSize)
             regions[i].credit = computeCredit(regions[i].size);
         else
             regions[i].credit = 1e9;
+        printf("%d %d\n", i, regions[i].credit);
     }
     RegionalData* ret = new RegionalData(uf, regions);
     return ret;
@@ -160,13 +170,13 @@ struct SegmentationData{
     int segmentCount;
 };
 
-SegmentationData* expandRegions(RegionalData* rd, int minWeight,
+SegmentationData expandRegions(RegionalData* rd, int minWeight,
     int width, int height, Edge* graph, int edgeCount) {
     for (int i = edgeCount - 1; i >= 0 && graph[i].weight > minWeight; i--) {
         if (!rd->uf->isUnited(graph[i].from, graph[i].to)) {
             int a = rd->uf->find(graph[i].from);
             int b = rd->uf->find(graph[i].to);
-            int credit = min(rd->regions[a].credit, rd->region[b].credit);
+            int credit = std::min(rd->regions[a].credit, rd->regions[b].credit);
             if (credit > graph[i].weight) {
                 int s = rd->uf->unite(a, b);
                 rd->regions[s].credit = credit - graph[i].weight;
@@ -180,31 +190,21 @@ SegmentationData* expandRegions(RegionalData* rd, int minWeight,
             repTable[i] = idx++;
         }
     }
+    int* regionals = new int[width*height];
     for (int i = 0; i < width*height; i++) {
-        rd->regions[i] = repTable[rd->uf->find(i)];
+        regionals[i] = repTable[rd->uf->find(i)];
     }
-    SegmentationData ret = {rd->regions, idx};
+    SegmentationData ret = {regionals, idx};
     return ret;
 }
 
 // Main entry point
 
-extern "C" SegmentationData* segmentImage(unsigned char* rgb, int height,
+SegmentationData segmentImage(unsigned char* rgb, int height,
         int width, int minWeight, int maxWeight, int minRegionSize) {
     Graph* graph = createGraph(rgb, maxWeight, height, width);
     RegionalData* regional = getInitialRegions(graph->edges, minWeight,
         minRegionSize, graph->edgeCount, width, height);
     return expandRegions(regional, minWeight, width, height,
         graph->edges, graph->edgeCount);
-}
-
-// Testing
-
-extern "C" void printData(SegmentationData* data, int height, int width) {
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            printf("%d ", data->segment[i*width+j]);
-        }
-        printf("\n");
-    }
 }

@@ -157,7 +157,6 @@ RegionalData* getInitialRegions(Edge* graph, int minWeight, int minRegionSize,
             regions[i].credit = computeCredit(regions[i].size);
         else
             regions[i].credit = 1e9;
-        printf("%d %d\n", i, regions[i].credit);
     }
     RegionalData* ret = new RegionalData(uf, regions);
     return ret;
@@ -200,11 +199,16 @@ SegmentationData expandRegions(RegionalData* rd, int minWeight,
 
 // Main entry point
 
-SegmentationData segmentImage(unsigned char* rgb, int height,
+extern "C" SegmentationData printData(SegmentationData data) {
+    printf("%d\n", data.segmentCount);
+    return data;
+}
+
+extern "C" SegmentationData segmentImage(unsigned char* rgb, int height,
         int width, int minWeight, int maxWeight, int minRegionSize) {
     Graph* graph = createGraph(rgb, maxWeight, height, width);
     RegionalData* regional = getInitialRegions(graph->edges, minWeight,
         minRegionSize, graph->edgeCount, width, height);
-    return expandRegions(regional, minWeight, width, height,
-        graph->edges, graph->edgeCount);
+    return printData(expandRegions(regional, minWeight, width, height,
+        graph->edges, graph->edgeCount));
 }

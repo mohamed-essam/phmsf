@@ -3,9 +3,11 @@ Parallel Heuristic for Minimum Spanning Forests.
 
 ##Examples
 
-USC SIPI 2.2.13
+USC SIPI 2.2.13, size 1024x1024, processing time ~1000ms
 ![USC-SIPI 2.2.13 Stockton](http://i.imgur.com/eMoaxRq.png)
-USC SIPI testpat.1k
+
+
+USC SIPI testpat.1k, size 1024x1024, processing time ~700ms
 ![USC SIPI testpat1.k](http://i.imgur.com/Cr2jXAf.png)
 
 ##Usage

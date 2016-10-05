@@ -1,4 +1,4 @@
-# phmsf
+# PHMSF
 Parallel Heuristic for Minimum Spanning Forests.
 
 ##Examples
@@ -22,3 +22,5 @@ minimumEdgeWeight|The edge weight where all edges lighter than it are automatica
 maximumEdgeWeight|The maxmimum edge weight at which no regions are merged
 minimumRegionSize|The minimum region size
 
+##References
+* "Wassenberg, Jan ("2009"). "An Efficient Parallel Algorithm for Graph-Based Image Segmentation". "Springer Berlin Heidelberg"
